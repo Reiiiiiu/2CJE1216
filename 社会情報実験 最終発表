@@ -1,0 +1,149 @@
+import pygame
+import numpy as np
+import random
+import time
+import sys
+
+# 色付き
+GREY_BG = (187, 173, 160)
+COLOR_DICT = {
+    0: (205, 193, 180), 2: (238, 228, 218), 4: (237, 224, 200),
+    8: (242, 177, 121), 16: (245, 149, 99), 32: (246, 124, 95),
+    64: (244, 95, 55), 128: (236, 207, 113), 256: (237, 203, 103),
+    512: (235, 199, 79), 1024: (236, 196, 64), 2048: (237, 193, 45)
+}
+# サイズ
+SCREEN_WIDTH = 640
+SCREEN_HEIGHT = 640
+FRAME_RATE = 30
+# コントロール
+LEFT_KEY = pygame.K_LEFT
+RIGHT_KEY = pygame.K_RIGHT
+UP_KEY = pygame.K_UP
+DOWN_KEY = pygame.K_DOWN
+
+
+class Game():
+
+    def __init__(self):
+        self.ARR = np.zeros((4, 4))
+        self.moved = False
+
+    def blit_text(self, screen, text, x, y):
+        myfont = pygame.font.SysFont("Arial Bold", 50)
+
+        # render text
+        label = myfont.render(text, 1, (119, 110, 101))
+        screen.blit(label, (x, y))
+
+    def game_over(self, screen):
+        myfont = pygame.font.SysFont("Arial Bold", 50)
+        label = myfont.render("GAME OVER!", 1, (119, 110, 101))
+        screen.fill(GREY_BG)
+        screen.blit(label, (200, SCREEN_HEIGHT / 2))
+        pygame.display.update()
+        while True:
+            time.sleep(0.1)
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    sys.exit()
+
+    def process_move(self, screen):
+        y = 5
+        for i in range(4):
+            x = 5
+            for j in range(4):
+                tmp = self.ARR[i][j]
+                screen.fill(COLOR_DICT[tmp], (x, y, 150, 150))
+                if tmp != 0:
+                    self.blit_text(screen, str(int(tmp)), x + 65, y + 55)
+                x += 160
+            y += 160
+
+        if self.moved is True:
+            while True:
+                a, b = random.randint(0, 3), random.randint(0, 3)
+                if self.ARR[a][b] == 0:
+                    self.ARR[a][b] = 2
+                    break
+            self.moved = False
+
+    def board_shift(self, grid, direction):
+
+        for x in range(len(grid)):
+            dirs = {'D': grid[:, x], 'U': grid[:, x][::-1],
+                    'R': grid[x], 'L': grid[x][::-1]}
+            tmp = dirs[direction]
+
+            for j in range(len(tmp) - 2, -1, -1):
+                count = j
+                while count < len(tmp) - 1:
+                    if tmp[count] != 0 and tmp[count + 1] == 0:
+                        tmp[count], tmp[count + 1] = tmp[count + 1], tmp[count]
+                    count += 1
+
+            if tmp[-1] == tmp[-2]:
+                tmp[-1] = tmp[-1] + tmp[-2]
+                tmp[-2] = tmp[-3]
+                tmp[-3] = tmp[-4]
+                tmp[0] = 0
+            if tmp[-2] == tmp[-3]:
+                tmp[-2] = tmp[-2] + tmp[-3]
+                tmp[-3] = tmp[-4]
+                tmp[-4] = 0
+            if tmp[-3] == tmp[-4]:
+                tmp[-3] = tmp[-3] + tmp[-4]
+                tmp[-4] = 0
+
+            if direction == 'L' or direction == 'U':
+                tmp = tmp[::-1]
+
+        return grid
+
+    def loop(self, screen):
+        
+        start_pos = [random.randint(0, 3) for x in range(4)]
+        self.ARR[start_pos[0]][start_pos[1]] = 2
+        self.ARR[start_pos[2]][start_pos[3]] = 2
+        clock = pygame.time.Clock()
+
+        while True:
+            if np.count_nonzero(self.ARR == 0) == 0:
+                self.game_over(screen)
+
+            delta_t = clock.tick(FRAME_RATE)
+
+            for event in pygame.event.get(): 
+
+                if event.type == pygame.QUIT:
+                    return 
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    return 
+                elif event.type == pygame.KEYDOWN:
+                    self.moved = True
+                    if event.key == UP_KEY:
+                        self.ARR = self.board_shift(self.ARR, 'U')
+                    elif event.key == DOWN_KEY:
+                        self.ARR = self.board_shift(self.ARR, 'D')
+                    elif event.key == LEFT_KEY:
+                        self.ARR = self.board_shift(self.ARR, 'L')
+                    elif event.key == RIGHT_KEY:
+                        self.ARR = self.board_shift(self.ARR, 'R')
+
+            screen.fill(GREY_BG)
+            self.process_move(screen)
+            pygame.display.update()
+
+
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    pygame.display.set_caption('Keyboard')
+
+    game = Game()
+    game.loop(screen)
+    pygame.quit()
+
+
+if __name__ == '__main__':
+    main()
